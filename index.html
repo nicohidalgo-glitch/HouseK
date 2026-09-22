@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎒</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/sb.js"></script>
 <style>
   :root{
     --paper:#F4F0E4;
@@ -164,7 +164,7 @@
      tocar para que el sitio funcione.
      ============================================================ -->
 <script>
-  const SUPABASE_URL = "https://szczufbqhahhbdshcjjp.supabase.co";
+  const SUPABASE_URL = "https://szczufbqhahhbdshcjjp.sb.co";
   const SUPABASE_ANON_KEY = "sb_publishable_WK9HrhnYFwtX49yn5RHw_A_Qch4277f";
 </script>
 
@@ -301,8 +301,8 @@
 </div>
 
 <script>
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+const sb = window.sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  
 const HOUSE_COLORS = { S:'#C0392B', H:'#2980B9', A:'#27AE60', E:'#8E44AD', K:'#B7950B' };
 const HOUSE_LIST = ['S','H','A','E'];
 let session = JSON.parse(localStorage.getItem('ens_session') || 'null');
@@ -324,7 +324,7 @@ function checkLoginReady(){ document.getElementById('login-btn').disabled = !(se
 document.getElementById('login-btn').onclick = async ()=>{
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
-  const { data, error } = await supabase.from('houses').select('*').eq('id', selectedHouse).eq('pin', pinInput.value.trim()).maybeSingle();
+  const { data, error } = await sb.from('houses').select('*').eq('id', selectedHouse).eq('pin', pinInput.value.trim()).maybeSingle();
   if (error || !data){ errEl.textContent = 'PIN incorrecto. Probá de nuevo.'; return; }
   session = { id: data.id, name: data.name, is_admin: data.is_admin };
   localStorage.setItem('ens_session', JSON.stringify(session));
@@ -381,7 +381,7 @@ if (session) boot();
 
 /* ---------------- LIBRETA ---------------- */
 async function loadLibreta(){
-  const { data: scores } = await supabase.from('scores').select('house_id, activity, points');
+  const { data: scores } = await sb.from('scores').select('house_id, activity, points');
   const totals = {}; const byActivity = {};
   HOUSE_LIST.forEach(h=>{ totals[h]=0; byActivity[h]={}; });
   (scores||[]).forEach(r=>{
@@ -412,10 +412,10 @@ async function loadLibreta(){
 async function loadFotos(){
   const grid = document.getElementById('photo-grid');
   grid.innerHTML = 'Cargando…';
-  const { data: photos } = await supabase.from('photos').select('id, image_url, display_order').order('display_order');
+  const { data: photos } = await sb.from('photos').select('id, image_url, display_order').order('display_order');
   let myGuesses = {};
   if (!session.is_admin){
-    const { data: guesses } = await supabase.from('photo_guesses').select('photo_id, guess_name, is_correct').eq('house_id', session.id);
+    const { data: guesses } = await sb.from('photo_guesses').select('photo_id, guess_name, is_correct').eq('house_id', session.id);
     (guesses||[]).forEach(g=> myGuesses[g.photo_id] = g);
   }
   if (!photos || photos.length===0){ grid.innerHTML = '<p class="lead">Todavía no hay fotos cargadas. Avisale a Casa K.</p>'; return; }
@@ -433,7 +433,7 @@ async function loadFotos(){
       input.addEventListener('keydown', async (e)=>{
         if (e.key==='Enter' && input.value.trim()){
           input.disabled = true;
-          const { error } = await supabase.from('photo_guesses').insert({ house_id: session.id, photo_id: p.id, guess_name: input.value.trim() });
+          const { error } = await sb.from('photo_guesses').insert({ house_id: session.id, photo_id: p.id, guess_name: input.value.trim() });
           const statusEl = card.querySelector('.status');
           if (error){ statusEl.textContent = 'error, reintentá'; input.disabled=false; }
           else { statusEl.textContent = '✓ Respuesta guardada'; statusEl.classList.add('ok'); }
@@ -447,7 +447,7 @@ async function loadFotos(){
 /* ---------------- TRIVIA ---------------- */
 let triviaTimerInterval = null;
 async function loadTrivia(){
-  const { data: state } = await supabase.from('event_state').select('*').eq('id',1).single();
+  const { data: state } = await sb.from('event_state').select('*').eq('id',1).single();
   renderTrivia(state);
 }
 async function renderTrivia(state){
@@ -459,12 +459,12 @@ async function renderTrivia(state){
     bodyEl.innerHTML = '<p class="lead">Cuando se abra la pregunta va a aparecer acá para las cuatro casas al mismo tiempo.</p>';
     return;
   }
-  const { data: q } = await supabase.from('trivia_questions').select('*').eq('id', state.trivia_question_id).single();
+  const { data: q } = await sb.from('trivia_questions').select('*').eq('id', state.trivia_question_id).single();
   if (!q) return;
   titleEl.textContent = q.question_text;
   const opened = new Date(state.trivia_opened_at).getTime();
 
-  const { data: already } = session.is_admin ? {data:null} : await supabase.from('trivia_answers').select('*').eq('house_id', session.id).eq('question_id', q.id).maybeSingle();
+  const { data: already } = session.is_admin ? {data:null} : await sb.from('trivia_answers').select('*').eq('house_id', session.id).eq('question_id', q.id).maybeSingle();
 
   bodyEl.innerHTML = `
     <div class="timer mono" id="trivia-timer">00:00</div>
@@ -483,7 +483,7 @@ async function renderTrivia(state){
       btn.onclick = async ()=>{
         bodyEl.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
         btn.classList.add('chosen');
-        await supabase.from('trivia_answers').insert({ house_id: session.id, question_id: q.id, chosen_option: btn.dataset.opt });
+        await sb.from('trivia_answers').insert({ house_id: session.id, question_id: q.id, chosen_option: btn.dataset.opt });
       };
     });
   }
@@ -495,8 +495,8 @@ async function loadMachete(){
     document.getElementById('machete-clue').textContent = 'Vista de docente: elegí una casa en el Panel para ver su progreso.';
     return;
   }
-  const { data: prog } = await supabase.from('machete_progress').select('*').eq('house_id', session.id).single();
-  const { count } = await supabase.from('machete_steps').select('*', {count:'exact', head:true}).eq('house_id', session.id);
+  const { data: prog } = await sb.from('machete_progress').select('*').eq('house_id', session.id).single();
+  const { count } = await sb.from('machete_steps').select('*', {count:'exact', head:true}).eq('house_id', session.id);
   document.getElementById('machete-total').textContent = count || '?';
   if (prog && prog.completed_at){
     document.getElementById('machete-step-num').textContent = count;
@@ -509,7 +509,7 @@ async function loadMachete(){
   const step = prog ? prog.current_step : 1;
   document.getElementById('machete-step-num').textContent = step;
   document.getElementById('machete-progress-fill').style.width = (((step-1)/(count||1))*100)+'%';
-  const { data: clue } = await supabase.from('machete_steps').select('clue_text').eq('house_id', session.id).eq('step_num', step).maybeSingle();
+  const { data: clue } = await sb.from('machete_steps').select('clue_text').eq('house_id', session.id).eq('step_num', step).maybeSingle();
   document.getElementById('machete-clue').textContent = clue ? clue.clue_text : 'No hay más pistas cargadas para esta posta.';
 }
 document.getElementById('machete-submit').onclick = async ()=>{
@@ -517,7 +517,7 @@ document.getElementById('machete-submit').onclick = async ()=>{
   const errEl = document.getElementById('machete-error');
   errEl.textContent = '';
   if (!input.value.trim()) return;
-  const { data, error } = await supabase.rpc('check_machete_answer', { p_house: session.id, p_answer: input.value.trim() });
+  const { data, error } = await sb.rpc('check_machete_answer', { p_house: session.id, p_answer: input.value.trim() });
   if (error){ errEl.textContent = 'Error de conexión, reintentá.'; return; }
   if (data.correct){
     input.value=''; loadMachete();
@@ -533,10 +533,10 @@ async function loadFeria(){
     document.getElementById('feria-body').innerHTML = '<p class="lead">Los expedientes se cargan y editan desde Supabase (tabla feria_cases). Las entregas de cada casa se ven en la tabla feria_submissions.</p>';
     return;
   }
-  const { data: c } = await supabase.from('feria_cases').select('*').eq('house_id', session.id).maybeSingle();
+  const { data: c } = await sb.from('feria_cases').select('*').eq('house_id', session.id).maybeSingle();
   if (!c){ document.getElementById('feria-client').textContent = 'Todavía no hay expediente cargado.'; return; }
   document.getElementById('feria-client').textContent = 'Paciente: ' + c.client_name + ' (' + c.industry + ')';
-  const { data: sub } = await supabase.from('feria_submissions').select('*').eq('house_id', session.id).maybeSingle();
+  const { data: sub } = await sb.from('feria_submissions').select('*').eq('house_id', session.id).maybeSingle();
   document.getElementById('feria-body').innerHTML = `
     <p class="lead"><b>Síntomas:</b> ${c.symptoms_text}</p>
     <p class="lead"><b>Presupuesto:</b> ${c.budget_text||'—'}</p>
@@ -554,7 +554,7 @@ async function loadFeria(){
   `;
   document.getElementById('feria-submit').onclick = async ()=>{
     const val = document.getElementById('feria-link').value.trim();
-    const { error } = await supabase.from('feria_submissions').upsert({ house_id: session.id, link_url: val, submitted_at: new Date().toISOString() });
+    const { error } = await sb.from('feria_submissions').upsert({ house_id: session.id, link_url: val, submitted_at: new Date().toISOString() });
     document.getElementById('feria-error').textContent = error ? 'Error al guardar.' : '✓ Entregado';
     document.getElementById('feria-error').style.color = error ? 'var(--red)' : 'var(--green)';
   };
@@ -562,7 +562,7 @@ async function loadFeria(){
 
 /* ---------------- ADMIN ---------------- */
 async function loadAdmin(){
-  const { data: qs } = await supabase.from('trivia_questions').select('id, order_num, question_text').order('order_num');
+  const { data: qs } = await sb.from('trivia_questions').select('id, order_num, question_text').order('order_num');
   const sel = document.getElementById('adm-trivia-q');
   sel.innerHTML = (qs||[]).map(q=>`<option value="${q.id}">${q.order_num}. ${q.question_text}</option>`).join('');
   refreshAdminLog();
@@ -574,55 +574,55 @@ document.getElementById('adm-add-score').onclick = async ()=>{
   const points = parseInt(document.getElementById('adm-points').value || '0', 10);
   const note = document.getElementById('adm-note').value.trim();
   if (!points) return;
-  await supabase.from('scores').insert({ house_id: house, activity, points, note });
+  await sb.from('scores').insert({ house_id: house, activity, points, note });
   document.getElementById('adm-points').value=''; document.getElementById('adm-note').value='';
   refreshAdminLog();
 };
 document.getElementById('adm-trivia-open').onclick = async ()=>{
   const qid = document.getElementById('adm-trivia-q').value;
-  await supabase.from('event_state').update({ trivia_question_id: qid, trivia_is_open: true, trivia_opened_at: new Date().toISOString() }).eq('id',1);
+  await sb.from('event_state').update({ trivia_question_id: qid, trivia_is_open: true, trivia_opened_at: new Date().toISOString() }).eq('id',1);
   refreshTriviaStatus();
 };
 document.getElementById('adm-trivia-close').onclick = async ()=>{
-  await supabase.from('event_state').update({ trivia_is_open: false }).eq('id',1);
+  await sb.from('event_state').update({ trivia_is_open: false }).eq('id',1);
   refreshTriviaStatus();
 };
 document.getElementById('adm-trivia-score').onclick = async ()=>{
-  const { data: state } = await supabase.from('event_state').select('*').eq('id',1).single();
+  const { data: state } = await sb.from('event_state').select('*').eq('id',1).single();
   if (!state.trivia_question_id) return;
-  const { data: q } = await supabase.from('trivia_questions').select('*').eq('id', state.trivia_question_id).single();
-  const { data: answers } = await supabase.from('trivia_answers').select('*').eq('question_id', q.id).order('answered_at', {ascending:true});
+  const { data: q } = await sb.from('trivia_questions').select('*').eq('id', state.trivia_question_id).single();
+  const { data: answers } = await sb.from('trivia_answers').select('*').eq('question_id', q.id).order('answered_at', {ascending:true});
   const correct = (answers||[]).filter(a=>a.chosen_option===q.correct_option);
   const pointsByRank = [4,3,2,1];
   for (let i=0;i<correct.length;i++){
-    await supabase.from('scores').insert({ house_id: correct[i].house_id, activity:'trivia', points: pointsByRank[i]||1, note:'Pregunta '+q.order_num });
+    await sb.from('scores').insert({ house_id: correct[i].house_id, activity:'trivia', points: pointsByRank[i]||1, note:'Pregunta '+q.order_num });
   }
   refreshAdminLog();
   document.getElementById('adm-trivia-status').textContent = 'Puntos cargados para '+correct.length+' casas que acertaron.';
 };
 async function refreshTriviaStatus(){
-  const { data: state } = await supabase.from('event_state').select('*').eq('id',1).single();
+  const { data: state } = await sb.from('event_state').select('*').eq('id',1).single();
   document.getElementById('adm-trivia-status').textContent = state.trivia_is_open ? '🟢 Pregunta abierta, esperando respuestas…' : '🔴 Cerrada';
 }
 async function refreshAdminLog(){
-  const { data } = await supabase.from('scores').select('house_id, activity, points, note').order('created_at', {ascending:false}).limit(15);
+  const { data } = await sb.from('scores').select('house_id, activity, points, note').order('created_at', {ascending:false}).limit(15);
   const tbody = document.querySelector('#adm-score-log tbody');
   tbody.innerHTML = (data||[]).map(r=>`<tr><td><span class="pill" style="background:${HOUSE_COLORS[r.house_id]}">${r.house_id}</span></td><td>${r.activity}</td><td>${r.points}</td><td>${r.note||''}</td></tr>`).join('');
 }
 
 /* ---------------- REALTIME ---------------- */
 function subscribeRealtime(){
-  supabase.channel('scores-live').on('postgres_changes', {event:'*', schema:'public', table:'scores'}, ()=>{
+  sb.channel('scores-live').on('postgres_changes', {event:'*', schema:'public', table:'scores'}, ()=>{
     loadLibreta();
     if (currentScreen==='admin') refreshAdminLog();
   }).subscribe();
 
-  supabase.channel('event-state-live').on('postgres_changes', {event:'*', schema:'public', table:'event_state'}, (payload)=>{
+  sb.channel('event-state-live').on('postgres_changes', {event:'*', schema:'public', table:'event_state'}, (payload)=>{
     if (currentScreen==='trivia') renderTrivia(payload.new);
     if (currentScreen==='admin') refreshTriviaStatus();
   }).subscribe();
 
-  supabase.channel('machete-live').on('postgres_changes', {event:'*', schema:'public', table:'machete_progress'}, ()=>{
+  sb.channel('machete-live').on('postgres_changes', {event:'*', schema:'public', table:'machete_progress'}, ()=>{
     if (currentScreen==='machete') loadMachete();
   }).subscribe();
 }
